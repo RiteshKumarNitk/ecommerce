@@ -1,7 +1,7 @@
 import { FileIcon, UploadCloudIcon, XIcon } from "lucide-react";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import axios from "axios";
 import { Skeleton } from "../ui/skeleton";
@@ -17,11 +17,9 @@ function ProductImageUpload({
   isCustomStyling = false,
 }) {
   const inputRef = useRef(null);
-  const [errorMessage, setErrorMessage] = useState("");
 
   function handleImageFileChange(event) {
     const selectedFile = event.target.files?.[0];
-    console.log(selectedFile, ">>>>>>>>>>>>>");
     if (selectedFile) setImageFile(selectedFile);
   }
 
@@ -37,41 +35,41 @@ function ProductImageUpload({
 
   function handleRemoveImage() {
     setImageFile(null);
-    setErrorMessage(""); // Clear any previous error
     if (inputRef.current) {
       inputRef.current.value = "";
     }
   }
 
-  // Upload image to Cloudinary
   async function uploadImageToCloudinary() {
     try {
+      // Set loading state to true to show the loader
       setImageLoadingState(true);
-      setErrorMessage(""); // Clear any previous error
   
+      // Create a new FormData object to append the file and preset
       const data = new FormData();
-      data.append("my_file", imageFile);
+      data.append("file", imageFile); // Correct parameter name is "file"
+      data.append('upload_preset', 'ml_default'); // Use your actual preset name
   
+      // Post the FormData to Cloudinary upload API
       const response = await axios.post(
-        `${process.env.REACT_APP_UPLOAD_URL}/api/admin/products/upload-image`,
+        `https://api.cloudinary.com/v1_1/dtnedfsdt/image/upload`,
         data
       );
   
-      console.log("Upload response:", response); // Log response to verify structure
+      // Check if the response contains the expected data
+      if (response?.data?.secure_url) {
+        const uploadedUrl = response.data.secure_url; // Get the secure URL of the uploaded image
+        setUploadedImageUrl(uploadedUrl); // Update the state with the uploaded image URL
   
-      if (response?.data?.success) {
-        const uploadedUrl = response.data.result.url;
-        console.log("Uploaded URL:", uploadedUrl); // Log the URL to verify it is set
-        setUploadedImageUrl(uploadedUrl);
-        saveImageUrlToDatabase(uploadedUrl); // Save to DB after upload
+        // Save the uploaded image URL to the database
+        saveImageUrlToDatabase(uploadedUrl);
       } else {
-        console.error("Upload failed:", response.data);
-        setErrorMessage("Upload failed. Please try again.");
+        console.error("Upload failed:", response?.data);
       }
     } catch (error) {
-      console.error("Error uploading image:", error);
-      setErrorMessage("Error uploading image. Please check your network.");
+      console.error("Error uploading image:", error); // Log any errors
     } finally {
+      // Reset loading state once the upload is complete
       setImageLoadingState(false);
     }
   }
@@ -85,27 +83,29 @@ function ProductImageUpload({
       );
 
       if (!saveResponse?.data?.success) {
-        setErrorMessage("Failed to save image URL to the database.");
+        console.error("Failed to save image URL to database:", saveResponse.data);
       }
     } catch (error) {
-      setErrorMessage("Error saving image URL to the database.");
+      console.error("Error saving image URL to database:", error);
     }
   }
 
   useEffect(() => {
-    if (imageFile && !imageLoadingState && !isEditMode) {
+    if (imageFile) {
       uploadImageToCloudinary();
     }
   }, [imageFile]);
 
   return (
-    <div className={`w-full mt-4 ${isCustomStyling ? "" : "max-w-md mx-auto"}`}>
+    <div
+      className={`w-full mt-4 ${isCustomStyling ? "" : "max-w-md mx-auto"}`}
+    >
       <Label className="text-lg font-semibold mb-2 block">Upload Image</Label>
       <div
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`${
-          isEditMode ? "opacity-60 cursor-not-allowed" : ""
+          isEditMode ? "opacity-60" : ""
         } border-2 border-dashed rounded-lg p-4`}
       >
         <Input
@@ -120,20 +120,20 @@ function ProductImageUpload({
           <Label
             htmlFor="image-upload"
             className={`${
-              isEditMode ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-            } flex flex-col items-center justify-center h-32`}
+              isEditMode ? "cursor-not-allowed" : ""
+            } flex flex-col items-center justify-center h-32 cursor-pointer`}
           >
             <UploadCloudIcon className="w-10 h-10 text-muted-foreground mb-2" />
             <span>Drag & drop or click to upload image</span>
           </Label>
         ) : imageLoadingState ? (
-          <Skeleton className="h-10 bg-gray-100 animate-pulse" />
+          <Skeleton className="h-10 bg-gray-100" />
         ) : (
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <FileIcon className="w-8 text-primary mr-2 h-8" />
-              <p className="text-sm font-medium">{imageFile.name}</p>
             </div>
+            <p className="text-sm font-medium">{imageFile.name}</p>
             <Button
               variant="ghost"
               size="icon"
@@ -146,11 +146,6 @@ function ProductImageUpload({
           </div>
         )}
       </div>
-      {errorMessage && (
-        <p className="text-red-500 mt-2" aria-live="polite">
-          {errorMessage}
-        </p>
-      )}
     </div>
   );
 }
