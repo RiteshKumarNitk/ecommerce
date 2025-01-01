@@ -1,7 +1,7 @@
 import { FileIcon, UploadCloudIcon, XIcon } from "lucide-react";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import axios from "axios";
 import { Skeleton } from "../ui/skeleton";
@@ -13,15 +13,13 @@ function ProductImageUpload({
   uploadedImageUrl,
   setUploadedImageUrl,
   setImageLoadingState,
-  isEditMode,
+  isEditMode = false,
   isCustomStyling = false,
 }) {
   const inputRef = useRef(null);
-  const [errorMessage, setErrorMessage] = useState("");
 
   function handleImageFileChange(event) {
     const selectedFile = event.target.files?.[0];
-    console.log(selectedFile, ">>>>>>>>>>>>>");
     if (selectedFile) setImageFile(selectedFile);
   }
 
@@ -37,63 +35,50 @@ function ProductImageUpload({
 
   function handleRemoveImage() {
     setImageFile(null);
-    setErrorMessage(""); // Clear any previous error
     if (inputRef.current) {
       inputRef.current.value = "";
     }
   }
 
-  // Upload image to Cloudinary
   async function uploadImageToCloudinary() {
     try {
-      setImageLoadingState(true);
-      setErrorMessage(""); // Clear any previous error
-  
+      setImageLoadingState(true); // Set loading state to true
       const data = new FormData();
-      data.append("my_file", imageFile);
-  
-      const response = await axios.post(
-        `${process.env.REACT_APP_UPLOAD_URL}/api/admin/products/upload-image`,
-        data
-      );
-  
-      console.log("Upload response:", response); // Log response to verify structure
-  
-      if (response?.data?.success) {
-        const uploadedUrl = response.data.result.url;
-        console.log("Uploaded URL:", uploadedUrl); // Log the URL to verify it is set
+      data.append("file", imageFile);
+      data.append("upload_preset", process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || "ml_default");
+
+      const cloudinaryUrl = process.env.REACT_APP_CLOUDINARY_UPLOAD_URL || "https://api.cloudinary.com/v1_1/dtnedfsdt/image/upload";
+      const response = await axios.post(cloudinaryUrl, data);
+
+      if (response?.data?.secure_url) {
+        const uploadedUrl = response.data.secure_url;
         setUploadedImageUrl(uploadedUrl);
-        saveImageUrlToDatabase(uploadedUrl); // Save to DB after upload
+        saveImageUrlToDatabase(uploadedUrl);
       } else {
-        console.error("Upload failed:", response.data);
-        setErrorMessage("Upload failed. Please try again.");
+        console.error("Upload failed:", response?.data);
       }
     } catch (error) {
       console.error("Error uploading image:", error);
-      setErrorMessage("Error uploading image. Please check your network.");
     } finally {
       setImageLoadingState(false);
     }
   }
-  
-  // Save image URL to the database
+
   async function saveImageUrlToDatabase(imageUrl) {
     try {
-      const saveResponse = await axios.post(
-        `${process.env.REACT_APP_UPLOAD_URL}/api/admin/products/save-image`,
-        { image: imageUrl }
-      );
-
+      const saveResponse = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/admin/products/save-image`, {
+        image: imageUrl,
+      });
       if (!saveResponse?.data?.success) {
-        setErrorMessage("Failed to save image URL to the database.");
+        console.error("Failed to save image URL to database:", saveResponse.data);
       }
     } catch (error) {
-      setErrorMessage("Error saving image URL to the database.");
+      console.error("Error saving image URL to database:", error);
     }
   }
 
   useEffect(() => {
-    if (imageFile && !imageLoadingState && !isEditMode) {
+    if (imageFile) {
       uploadImageToCloudinary();
     }
   }, [imageFile]);
@@ -105,7 +90,7 @@ function ProductImageUpload({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`${
-          isEditMode ? "opacity-60 cursor-not-allowed" : ""
+          isEditMode ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
         } border-2 border-dashed rounded-lg p-4`}
       >
         <Input
@@ -119,15 +104,13 @@ function ProductImageUpload({
         {!imageFile ? (
           <Label
             htmlFor="image-upload"
-            className={`${
-              isEditMode ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-            } flex flex-col items-center justify-center h-32`}
+            className="flex flex-col items-center justify-center h-32 text-muted-foreground"
           >
-            <UploadCloudIcon className="w-10 h-10 text-muted-foreground mb-2" />
+            <UploadCloudIcon className="w-10 h-10 mb-2" />
             <span>Drag & drop or click to upload image</span>
           </Label>
         ) : imageLoadingState ? (
-          <Skeleton className="h-10 bg-gray-100 animate-pulse" />
+          <Skeleton className="h-10 bg-gray-100" />
         ) : (
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -146,11 +129,6 @@ function ProductImageUpload({
           </div>
         )}
       </div>
-      {errorMessage && (
-        <p className="text-red-500 mt-2" aria-live="polite">
-          {errorMessage}
-        </p>
-      )}
     </div>
   );
 }

@@ -3,13 +3,15 @@ import ShoppingHeader from "./header";
 
 function ShoppingLayout() {
   return (
-    <div className="flex flex-col bg-white overflow-hidden">
-      {/* common header */}
-      <ShoppingHeader />
-      <main className="flex flex-col w-full">
+    <div>
+    {/* Sticky header with shadow */}
+    <header className="sticky top-0 z-50 shadow-2xl w-full bg-white">
+        <ShoppingHeader />
+      </header>
+      <main className="flex flex-col w-full z-10">
         <Outlet />
       </main>
-    </div>
+  </div>
   );
 }
 
