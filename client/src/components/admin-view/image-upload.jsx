@@ -42,24 +42,34 @@ function ProductImageUpload({
 
   async function uploadImageToCloudinary() {
     try {
-      setImageLoadingState(true); // Set loading state to true
+      // Set loading state to true to show the loader
+      setImageLoadingState(true);
+  
+      // Create a new FormData object to append the file and preset
       const data = new FormData();
-      data.append("file", imageFile);
-      data.append("upload_preset", process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || "ml_default");
-
-      const cloudinaryUrl = process.env.REACT_APP_CLOUDINARY_UPLOAD_URL || "https://api.cloudinary.com/v1_1/dtnedfsdt/image/upload";
-      const response = await axios.post(cloudinaryUrl, data);
-
+      data.append("file", imageFile); // Correct parameter name is "file"
+      data.append('upload_preset', 'ml_default'); // Use your actual preset name
+  
+      // Post the FormData to Cloudinary upload API
+      const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/dtnedfsdt/image/upload`,
+        data
+      );
+  
+      // Check if the response contains the expected data
       if (response?.data?.secure_url) {
-        const uploadedUrl = response.data.secure_url;
-        setUploadedImageUrl(uploadedUrl);
+        const uploadedUrl = response.data.secure_url; // Get the secure URL of the uploaded image
+        setUploadedImageUrl(uploadedUrl); // Update the state with the uploaded image URL
+  
+        // Save the uploaded image URL to the database
         saveImageUrlToDatabase(uploadedUrl);
       } else {
         console.error("Upload failed:", response?.data);
       }
     } catch (error) {
-      console.error("Error uploading image:", error);
+      console.error("Error uploading image:", error); // Log any errors
     } finally {
+      // Reset loading state once the upload is complete
       setImageLoadingState(false);
     }
   }
@@ -84,13 +94,15 @@ function ProductImageUpload({
   }, [imageFile]);
 
   return (
-    <div className={`w-full mt-4 ${isCustomStyling ? "" : "max-w-md mx-auto"}`}>
+    <div
+      className={`w-full mt-4 ${isCustomStyling ? "" : "max-w-md mx-auto"}`}
+    >
       <Label className="text-lg font-semibold mb-2 block">Upload Image</Label>
       <div
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`${
-          isEditMode ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+          isEditMode ? "opacity-60" : ""
         } border-2 border-dashed rounded-lg p-4`}
       >
         <Input
@@ -104,7 +116,9 @@ function ProductImageUpload({
         {!imageFile ? (
           <Label
             htmlFor="image-upload"
-            className="flex flex-col items-center justify-center h-32 text-muted-foreground"
+            className={`${
+              isEditMode ? "cursor-not-allowed" : ""
+            } flex flex-col items-center justify-center h-32 cursor-pointer`}
           >
             <UploadCloudIcon className="w-10 h-10 mb-2" />
             <span>Drag & drop or click to upload image</span>
@@ -115,8 +129,8 @@ function ProductImageUpload({
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <FileIcon className="w-8 text-primary mr-2 h-8" />
-              <p className="text-sm font-medium">{imageFile.name}</p>
             </div>
+            <p className="text-sm font-medium">{imageFile.name}</p>
             <Button
               variant="ghost"
               size="icon"
